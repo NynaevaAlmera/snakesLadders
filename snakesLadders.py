@@ -1,6 +1,8 @@
 import random
 import math
 import argparse
+import numpy as np
+import pprint
 
 def quickestWayUp(ladders, snakes, goal):
     adj = dict()
@@ -85,6 +87,52 @@ def generateSnakesAndLadders(numOfLadders, numOfSnakes, goal):
     
     return ladders,snakes
 
+def betterAverageFinder(ladders,snakes,goal):
+    if quickestWayUp(ladders, snakes, goal) == -1:
+        return -1
+
+    ladderMap = dict()
+
+    for i in range(len(ladders)):
+        ladderMap[ladders[i][0]] = ladders[i][1]
+
+    for i in range(len(snakes)):
+        ladderMap[snakes[i][0]] = snakes[i][1]
+    
+    equations = [[0]*(goal) for _ in range(goal)]
+    rightHandSide = [0] * (goal)
+
+    for i in range(0, goal):
+        #print(i)
+        #print(equations[i], '\n')
+        equations[i][i] = 1
+        #print(equations[i], '\n')
+
+    for i in range(goal - 1, goal - 7, -1):
+        if (i) not in ladderMap:
+            rightHandSide[i-1] = 6/(goal-i)
+            for j in range(i+1, goal):
+                equations[i-1][j-1] = -1/(goal-i)
+        else:
+            equations[i-1][ladderMap[i]-1] = -1
+        
+    for i in range(goal - 7, 0, -1):
+        if (i) not in ladderMap:
+            rightHandSide[i-1] = 1
+            for j in range(i+1, i+7):
+                equations[i-1][j-1] = -1/6
+        else:
+            equations[i-1][ladderMap[i]-1] = -1
+
+
+    A = np.array(equations)
+    b = np.array(rightHandSide)
+
+    solutions = np.linalg.solve(A, b)
+    
+    return solutions[0]
+    
+
 def luckPath(ladders,snakes,goal):
     if quickestWayUp(ladders, snakes, goal) == -1:
         return -1
@@ -108,6 +156,7 @@ def luckPath(ladders,snakes,goal):
                 currentField = ladderMap[currentField + advance]
             else:
                 currentField = currentField + advance
+
             
     return numOfSteps
 
@@ -125,24 +174,34 @@ def averageSteps(ladders,snakes,goal,numOfIterations):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument("-s", "--snakes", type=int,
-            help="number of snakes, default value 5", default=5)
-    ap.add_argument("-l", "--ladders", type=int, default=17,
+            help="number of snakes, default value 5", default=40)
+    ap.add_argument("-l", "--ladders", type=int, default=0,
             help="number of ladders, default value 17")
     ap.add_argument("-g","--goal", type=int, default=100,
             help="goal field, distance from start to goal")
     args = vars(ap.parse_args())
- 
+
+
     goal = args["goal"]
     if goal < 2:
         print("goal must be 2 or greater")
         exit()
     ladders, snakes = generateSnakesAndLadders(args["ladders"], args["snakes"], goal)
-    luckyAverage = averageSteps(ladders,snakes,goal,100)
+
+    while quickestWayUp(ladders, snakes, goal) != -1:
+        ladders, snakes = generateSnakesAndLadders(args["ladders"], args["snakes"], goal)
+    
+    luckyAverage = averageSteps(ladders,snakes,goal,1000000)
+    betterAverage = betterAverageFinder(ladders,snakes,goal)
     result = quickestWayUp(ladders, snakes, 100)
+    
+
+     
     print('The ladders: \n')
     print(ladders, '\n')
     print('The snakes: \n')
     print(snakes, '\n')
     print('Quickest path to the goal is ' + str(result) + ' steps\n')
     print('Average path to the goal is ' + str(luckyAverage) + ' steps\n')
+    print('BETTER average finder says path to the goal is ' + str(betterAverage) + ' steps\n')
     
